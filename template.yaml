@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: RulePlay - RulesService (Micronaut Lambda HTTP API v2)
+
+Globals:
+  Function:
+    Runtime: java21
+    Architectures: [ arm64 ]
+    MemorySize: 512
+    Timeout: 15
+    Tracing: Active
+
+Parameters:
+  StageName:
+    Type: String
+    Default: dev
+
+Resources:
+  RulesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub RulePlay-Rules-${StageName}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ruleId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ruleId
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref StageName
+      CorsConfiguration:
+        AllowOrigins: ['*']
+        AllowMethods: ['GET','OPTIONS']
+        AllowHeaders: ['Content-Type','Authorization']
+
+  RulesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./GetRulesFunction
+      Handler: app.rules.Function
+      Environment:
+        Variables:
+          RULES_TABLE: RulePlay-Rules-dev
+          AWS_REGION: eu-central-1
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: RulePlay-Rules-dev
+      Events:
+        ListRules:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /rules
+            Method: GET
+        GetRule:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /rules/{id}
+            Method: GET
+
+Outputs:
+  ApiUrl:
+    Value: !Sub https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${StageName}
