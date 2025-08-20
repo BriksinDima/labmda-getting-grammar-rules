@@ -16,26 +16,10 @@ Parameters:
     Default: dev
 
 Resources:
-  RulesTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub RulePlay-Rules-${StageName}
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: ruleId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: ruleId
-          KeyType: HASH
-      SSESpecification:
-        SSEEnabled: true
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: true
-
   Api:
     Type: AWS::Serverless::HttpApi
     Properties:
-      StageName: !Ref StageName
+      StageName: $default
       CorsConfiguration:
         AllowOrigins: ['*']
         AllowMethods: ['GET','OPTIONS']
@@ -44,28 +28,34 @@ Resources:
   RulesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ./GetRulesFunction
+      Runtime: java21
       Handler: app.rules.Function
+      CodeUri: GetRulesFunction/
       Environment:
         Variables:
           RULES_TABLE: RulePlay-Rules-dev
-          AWS_REGION: eu-central-1
       Policies:
-        - DynamoDBReadPolicy:
-            TableName: RulePlay-Rules-dev
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:DescribeTable
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/RulePlay-Rules-dev
       Events:
-        ListRules:
+        Root:
           Type: HttpApi
           Properties:
             ApiId: !Ref Api
-            Path: /rules
-            Method: GET
-        GetRule:
+            Path: /
+            Method: ANY
+        Any:
           Type: HttpApi
           Properties:
             ApiId: !Ref Api
-            Path: /rules/{id}
-            Method: GET
+            Path: /{proxy+}
+            Method: ANY
 
 Outputs:
   ApiUrl:
