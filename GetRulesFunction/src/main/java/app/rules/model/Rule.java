@@ -1,4 +1,4 @@
-package app.rules;
+package app.rules.model;
 
 import io.micronaut.serde.annotation.Serdeable;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*;
@@ -8,12 +8,15 @@ import java.util.List;
 @Serdeable
 @DynamoDbBean
 public class Rule {
+
     private String ruleId;
     private String name;
     private String description;
     private String level;
     private List<String> tags;
     private Boolean enabled;
+    private Integer examplesCount;
+    private List<String> examples;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("ruleId")
@@ -39,4 +42,12 @@ public class Rule {
     @DynamoDbAttribute("enabled")
     public Boolean getEnabled() { return enabled; }
     public void setEnabled(Boolean enabled) { this.enabled = enabled; }
+
+    @DynamoDbAttribute("examplesCount")
+    public Integer getExamplesCount() { return examplesCount; }
+    public void setExamplesCount(Integer examplesCount) { this.examplesCount = examplesCount; }
+
+    @DynamoDbAttribute("examples")
+    public List<String> getExamples() { return examples; }
+    public void setExamples(List<String> examples) { this.examples = examples; }
 }

@@ -1,5 +1,7 @@
-package app.rules;
+package app.rules.web;
 
+import app.rules.service.RulesService;
+import app.rules.model.Rule;
 import io.micronaut.http.annotation.*;
 import io.micronaut.http.HttpResponse;
 import jakarta.inject.Inject;

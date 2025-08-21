@@ -1,4 +1,4 @@
-package app.rules;
+package app.rules.config;
 
 import io.micronaut.context.annotation.Factory;
 import jakarta.inject.Singleton;
@@ -13,12 +13,13 @@ import java.net.URI;
 import java.util.Optional;
 
 @Factory
-public class DdbConfig {
+public class AwsClientsFactory {
 
     @Singleton
     DynamoDbClient dynamoDbClient() {
         Region region = Optional.ofNullable(System.getenv("AWS_REGION"))
-                .map(Region::of).orElse(Region.US_EAST_1);
+                .map(Region::of)
+                .orElse(Region.US_EAST_1);
 
         String endpoint = System.getenv("DDB_ENDPOINT");
         if (endpoint != null && !endpoint.isBlank()) {
@@ -26,7 +27,7 @@ public class DdbConfig {
                     .region(region)
                     .endpointOverride(URI.create(endpoint))
                     .credentialsProvider(StaticCredentialsProvider.create(
-                            AwsBasicCredentials.create("dummy","dummy")))
+                            AwsBasicCredentials.create("dummy", "dummy")))
                     .build();
         }
 
@@ -38,6 +39,8 @@ public class DdbConfig {
 
     @Singleton
     DynamoDbEnhancedClient enhanced(DynamoDbClient ddb) {
-        return DynamoDbEnhancedClient.builder().dynamoDbClient(ddb).build();
+        return DynamoDbEnhancedClient.builder()
+                .dynamoDbClient(ddb)
+                .build();
     }
 }
