@@ -9,7 +9,7 @@
         <version>1.0.0</version>
     </parent>
 
-    <artifactId>getrules-lambda</artifactId>
+    <artifactId>getrule-lambda</artifactId>
     <name>gramma rules</name>
     <packaging>jar</packaging>
 

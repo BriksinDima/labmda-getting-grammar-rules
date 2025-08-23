@@ -10,8 +10,8 @@
 
     <modules>
         <module>common</module>
-        <module>RulesFunction</module>
-        <module>TasksFunction</module>
+        <module>RuleFunction</module>
+        <module>TaskFunction</module>
     </modules>
 
     <properties>

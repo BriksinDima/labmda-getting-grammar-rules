@@ -77,7 +77,7 @@ Resources:
     Properties:
       FunctionName: !Sub "RulePlay-Rules-${StageName}"
       Handler: app.rules.Function
-      CodeUri: rules-service/
+      CodeUri: RuleFunction/
       MemorySize: 384
       Timeout: 10
       Layers:
@@ -103,13 +103,13 @@ Resources:
             Method: GET
 
   # ---------- TasksFunction ----------
-  TasksFunction:
+  TaskFunction:
     Condition: DoDeployTasks
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "RulePlay-Tasks-${StageName}"
       Handler: app.tasks.Function
-      CodeUri: tasks-service/
+      CodeUri: TaskFunction/
       MemorySize: 512
       Timeout: 15
       Layers:
