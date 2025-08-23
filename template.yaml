@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: RulePlay - RulesService (Micronaut Lambda HTTP API v2)
+Description: RulePlay — mono-repo (Rules + Tasks + single table)
 
 Globals:
   Function:
@@ -14,9 +14,35 @@ Parameters:
   StageName:
     Type: String
     Default: dev
+  DeployRules:
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
+    Description: Deploy RulesFunction?
+  DeployTasks:
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
+    Description: Deploy TasksFunction?
+
+Conditions:
+  DoDeployRules: !Equals [!Ref DeployRules, "true"]
+  DoDeployTasks: !Equals [!Ref DeployTasks, "true"]
 
 Resources:
-  Api:
+
+  # ---------- Shared Layer ----------
+  CommonLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: ruleplay-common
+      ContentUri: layer/
+      CompatibleRuntimes: [ java21 ]
+    Metadata:
+      BuildMethod: makefile
+
+  # ---------- Shared HTTP API ----------
+  HttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: $default
@@ -25,38 +51,87 @@ Resources:
         AllowMethods: ['GET','OPTIONS']
         AllowHeaders: ['Content-Type','Authorization']
 
+  # ---------- DynamoDB (single table with simple PK) ----------
+  RulePlayRules:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: RulePlayRules
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ruleId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ruleId
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # ---------- RulesFunction ----------
   RulesFunction:
+    Condition: DoDeployRules
     Type: AWS::Serverless::Function
     Properties:
-      Runtime: java21
+      FunctionName: !Sub "RulePlay-Rules-${StageName}"
       Handler: app.rules.Function
-      CodeUri: GetRulesFunction/
+      CodeUri: rules-service/
+      MemorySize: 384
+      Timeout: 10
+      Layers:
+        - !Ref CommonLayer
       Environment:
         Variables:
-          RULES_TABLE: RulePlay-Rules-dev
+          RULES_TABLE: !Ref RulePlayRules
       Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - dynamodb:DescribeTable
-                - dynamodb:GetItem
-                - dynamodb:Query
-                - dynamodb:Scan
-              Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/RulePlay-Rules-dev
+        - DynamoDBReadPolicy:
+            TableName: !Ref RulePlayRules
       Events:
-        Root:
+        ListRules:
           Type: HttpApi
           Properties:
-            ApiId: !Ref Api
-            Path: /
-            Method: ANY
-        Any:
+            ApiId: !Ref HttpApi
+            Path: /rules
+            Method: GET
+        GetRule:
           Type: HttpApi
           Properties:
-            ApiId: !Ref Api
-            Path: /{proxy+}
-            Method: ANY
+            ApiId: !Ref HttpApi
+            Path: /rules/{id}
+            Method: GET
+
+  # ---------- TasksFunction ----------
+  TasksFunction:
+    Condition: DoDeployTasks
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "RulePlay-Tasks-${StageName}"
+      Handler: app.tasks.Function
+      CodeUri: tasks-service/
+      MemorySize: 512
+      Timeout: 15
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          RULES_TABLE: !Ref RulePlayRules
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref RulePlayRules
+      Events:
+        NextTask:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /tasks/next
+            Method: GET
 
 Outputs:
-  ApiUrl:
-    Value: !Sub https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${StageName}
+  ApiEndpoint:
+    Description: HTTPS endpoint (default stage)
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  RulesTableName:
+    Description: Rules table name
+    Value: !Ref RulePlayRules
